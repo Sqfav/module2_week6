@@ -11,12 +11,18 @@ def test_cache():
     assert obj.method(1) == 1
     assert len(cache.data) == 2
 
-    cache.invalidate(slow_function)
+    cache.invalidate(obj.method)
     assert len(cache.data) == 1
+
+    cache.invalidate(slow_function)
+    assert len(cache.data) == 0
 
 
 @pytest.mark.asyncio
 async def test_cache_async():
-    result = await async_func(1)
-    assert result == 1
-    assert len(cache.data) == 2
+    assert await async_func(1) == 1
+    assert await async_func(1) == 1
+    assert len(cache.data) == 1
+
+    cache.invalidate(async_func)
+    assert len(cache.data) == 0

@@ -1,5 +1,5 @@
-import asyncio
 from functools import wraps
+import asyncio
 
 
 class Cache:
@@ -7,18 +7,34 @@ class Cache:
         self.data = {}
 
     def __call__(self, func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            key = (func.__name__, args, tuple(kwargs.items()))
-            if key not in self.data:
-                self.data[key] = func(*args, **kwargs)
-            return self.data[key]
+        if asyncio.iscoroutinefunction(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                name = func.__name__
+                if name in self.data:
+                    return self.data[name]
+                else:
+                    coro = func(*args, **kwargs)
+                    result = await coro
+
+                    self.data[func.__name__] = result
+                    return result
+        else:
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                name = func.__name__
+                if name in self.data:
+                    return self.data[name]
+                else:
+                    result = func(*args, **kwargs)
+                    self.data[func.__name__] = result
+                    return result
+
         return wrapper
 
     def invalidate(self, func):
-        keys_to_delete = [key for key in self.data.keys() if key[0] == func.__name__]
-        for key in keys_to_delete:
-            del self.data[key]
+        if func.__name__ in self.data:
+            del self.data[func.__name__]
 
 
 cache = Cache()
@@ -37,5 +53,4 @@ class MyClass:
 
 @cache
 async def async_func(arg):
-    await asyncio.sleep(1)
     return arg
